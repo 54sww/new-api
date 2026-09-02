@@ -296,9 +296,15 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 	case <-stopChan:
 		// EndReason already set by the goroutine that triggered stopChan
 	case <-c.Request.Context().Done():
-		// 客户端断开：立即 cleanup 关闭上游 resp.Body，解除 scanner 阻塞并让上游停止生成，
-		// 避免为已放弃的请求继续消费上游 token。
+		// 客户端断开：仅记录结束原因，不中断上游读取。上游通常按完整响应计费，
+		// usage（如 Claude message_delta 的 output_tokens）在流末尾才能读到，
+		// 立即关闭 resp.Body 会丢失 usage 导致计费缺失。继续等待 scanner 自然
+		// 结束（EOF / [DONE]）；若上游停滞，仍由上方 ticker 超时兜底。
 		info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, c.Request.Context().Err())
+		select {
+		case <-ticker.C:
+		case <-stopChan:
+		}
 	}
 
 	cleanup()

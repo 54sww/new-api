@@ -1,6 +1,9 @@
 package helper
 
 import (
+	"context"
+	"errors"
+
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 )
 
@@ -18,8 +21,15 @@ func newStreamResult(status *relaycommon.StreamStatus) *StreamResult {
 
 // Error records a soft error. The stream continues processing.
 // Can be called multiple times per chunk.
+// Write failures caused by the client disconnecting are skipped: after the
+// client is gone the upstream is still drained for usage/billing, and every
+// downstream write fails with the same wrapped context error — recording one
+// per chunk floods the log without adding information.
 func (r *StreamResult) Error(err error) {
 	if err == nil {
+		return
+	}
+	if errors.Is(err, context.Canceled) {
 		return
 	}
 	r.status.RecordError(err.Error())

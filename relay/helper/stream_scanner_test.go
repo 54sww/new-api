@@ -211,12 +211,13 @@ func TestStreamScannerHandler_DataWithExtraSpaces(t *testing.T) {
 	assert.Equal(t, "{\"trimmed\":true}", got)
 }
 
-// TestStreamScannerHandler_ClientCancelAbortsUpstreamAndReturns pins the
-// disconnect contract: when the client goes away, the handler must return
-// promptly (all goroutines joined, so the gin.Context can never leak into a
-// pooled reuse), the upstream body must be closed to stop token generation,
-// and no data received after the disconnect may be processed or written.
-func TestStreamScannerHandler_ClientCancelAbortsUpstreamAndReturns(t *testing.T) {
+// TestStreamScannerHandler_ClientGoneStillDrainsUpstream pins the disconnect
+// contract (issue 4463): when the client goes away, the handler must keep
+// reading the upstream stream until it ends naturally (EOF / [DONE]), so usage
+// chunks delivered after the disconnect are still processed for billing. The
+// handler must still return after the upstream ends, so the gin.Context can
+// never leak into a pooled reuse.
+func TestStreamScannerHandler_ClientGoneStillDrainsUpstream(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -237,15 +238,15 @@ func TestStreamScannerHandler_ClientCancelAbortsUpstreamAndReturns(t *testing.T)
 	}
 
 	var count atomic.Int64
-	firstHandled := make(chan struct{})
+	var mu sync.Mutex
+	handled := make(map[string]bool)
 	done := make(chan struct{})
 	go func() {
 		StreamScannerHandler(c, resp, info, func(data string, sr *StreamResult) {
 			count.Add(1)
-			_ = StringData(c, data)
-			if data == "first" {
-				close(firstHandled)
-			}
+			mu.Lock()
+			handled[data] = true
+			mu.Unlock()
 		})
 		close(done)
 	}()
@@ -253,34 +254,32 @@ func TestStreamScannerHandler_ClientCancelAbortsUpstreamAndReturns(t *testing.T)
 	_, err := fmt.Fprint(pw, "data: first\n")
 	require.NoError(t, err)
 
-	select {
-	case <-firstHandled:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for first chunk")
-	}
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return handled["first"]
+	}, 2*time.Second, 10*time.Millisecond, "timed out waiting for first chunk")
 
 	cancel()
 
-	// The handler must return without any further upstream input: cleanup
-	// closes resp.Body, which unblocks the scanner goroutine.
+	// After the disconnect the upstream is still drained: the usage-bearing
+	// tail of the stream must be processed, and the handler must return once
+	// the upstream ends on its own.
+	_, err = fmt.Fprint(pw, "data: usage_tail\n")
+	require.NoError(t, err, "upstream body must stay open after client disconnect")
+	require.NoError(t, pw.Close())
+
 	select {
 	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("handler did not return after client disconnect")
+	case <-time.After(5 * time.Second):
+		t.Fatal("handler did not return after upstream ended")
 	}
 
-	// Upstream read side must be closed so the provider stops generating
-	// (and billing) for a request nobody is listening to.
-	_, err = fmt.Fprint(pw, "data: second\n")
-	require.ErrorIs(t, err, io.ErrClosedPipe, "upstream body should be closed after client disconnect")
-
-	assert.Equal(t, int64(1), count.Load(), "no chunk after disconnect should be processed")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.True(t, handled["usage_tail"], "chunk after disconnect should still be processed for usage/billing")
 	require.NotNil(t, info.StreamStatus)
 	assert.Equal(t, relaycommon.StreamEndReasonClientGone, info.StreamStatus.EndReason)
-
-	body := recorder.Body.String()
-	assert.Contains(t, body, "first")
-	assert.NotContains(t, body, "second")
 }
 
 // ---------- Ping tests ----------
