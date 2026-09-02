@@ -53,6 +53,10 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo, task *model
 	if info.PriceData.GroupRatioInfo.HasSpecialRatio {
 		other["user_group_ratio"] = info.PriceData.GroupRatioInfo.GroupSpecialRatio
 	}
+	if info.PriceData.GroupRatioInfo.DedicatedModelSource != "" {
+		other["dedicated_model_ratio"] = info.PriceData.GroupRatioInfo.DedicatedModelRatio
+		other["dedicated_model_ratio_source"] = info.PriceData.GroupRatioInfo.DedicatedModelSource
+	}
 	if info.IsModelMapped {
 		other["is_model_mapped"] = true
 		other["upstream_model_name"] = info.UpstreamModelName
@@ -142,6 +146,10 @@ func taskBillingOther(task *model.Task) map[string]interface{} {
 			other["model_ratio"] = bc.ModelRatio
 		}
 		other["group_ratio"] = bc.GroupRatio
+		if bc.DedicatedModelSource != "" {
+			other["dedicated_model_ratio"] = bc.DedicatedModelRatio
+			other["dedicated_model_ratio_source"] = bc.DedicatedModelSource
+		}
 		if priceData := taskBillingContextPriceData(bc); priceData != nil {
 			for k, v := range priceData.OtherRatios() {
 				other[k] = v
@@ -359,15 +367,13 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 		return false
 	}
 
-	groupRatio := ratio_setting.GetGroupRatio(group)
-	userGroupRatio, hasUserGroupRatio := ratio_setting.GetGroupGroupRatio(group, group)
-
-	var finalGroupRatio float64
-	if hasUserGroupRatio {
-		finalGroupRatio = userGroupRatio
-	} else {
-		finalGroupRatio = groupRatio
+	// 优先使用提交时持久化的用户分组；旧任务未持久化时回退到任务分组（保持既有行为）
+	userGroup := group
+	if bc := task.PrivateData.BillingContext; bc != nil && bc.UserGroup != "" {
+		userGroup = bc.UserGroup
 	}
+	groupRatioInfo := ratio_setting.ResolveGroupRatio(task.UserId, userGroup, group, modelName)
+	finalGroupRatio := groupRatioInfo.GroupRatio
 
 	// 计算 OtherRatios 乘积（视频折扣、时长等）
 	otherMultiplier := 1.0
@@ -379,6 +385,9 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 	actualQuota, clamp := common.QuotaFromFloatChecked(float64(totalTokens) * modelRatio * finalGroupRatio * otherMultiplier)
 
 	reason := fmt.Sprintf("token重算：tokens=%d, modelRatio=%.2f, groupRatio=%.2f, otherMultiplier=%.4f", totalTokens, modelRatio, finalGroupRatio, otherMultiplier)
+	if groupRatioInfo.DedicatedModelSource != "" {
+		reason += fmt.Sprintf(", dedicatedRatio=%.4f(%s)", groupRatioInfo.DedicatedModelRatio, groupRatioInfo.DedicatedModelSource)
+	}
 	RecalculateTaskQuota(ctx, task, actualQuota, reason, clamp)
 	return true
 }

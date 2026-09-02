@@ -29,6 +29,37 @@ export function formatJsonForTextarea(value: string) {
   }
 }
 
+export function isValidModelPattern(pattern: string): boolean {
+  if (pattern === '') return false
+  if (pattern === '*') return true
+  const star = pattern.indexOf('*')
+  return star === -1 || star === pattern.length - 1
+}
+
+export function isValidDedicatedRatioMap(
+  parsed: unknown,
+  requireNumericKeys: boolean
+): boolean {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return false
+  }
+  for (const [owner, patterns] of Object.entries(
+    parsed as Record<string, unknown>
+  )) {
+    if (requireNumericKeys && !/^\d+$/.test(owner)) return false
+    if (typeof patterns !== 'object' || patterns === null) return false
+    for (const [pattern, ratio] of Object.entries(
+      patterns as Record<string, unknown>
+    )) {
+      if (!isValidModelPattern(pattern)) return false
+      if (typeof ratio !== 'number' || !Number.isFinite(ratio) || ratio < 0) {
+        return false
+      }
+    }
+  }
+  return true
+}
+
 export function normalizeJsonString(value: string) {
   const trimmed = value.trim()
   if (!trimmed) {
@@ -72,7 +103,7 @@ function extractErrorPosition(
     const lines = jsonString.substring(0, position).split('\n')
     return {
       line: lines.length,
-      column: lines[lines.length - 1].length + 1,
+      column: (lines.at(-1)?.length ?? 0) + 1,
       position,
     }
   }

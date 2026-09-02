@@ -76,6 +76,7 @@ import {
 } from '@/components/ui/sheet'
 
 import { safeJsonParse } from '../utils/json-parser'
+import { DedicatedModelRatioEditor } from './dedicated-model-ratio-editor'
 
 type GroupRatioVisualEditorProps = {
   groupRatio: string
@@ -85,6 +86,8 @@ type GroupRatioVisualEditorProps = {
   autoGroups: string
   maxTokenAutoGroupsField: ReactNode
   groupSpecialUsableGroup: string
+  userModelRatio: string
+  groupModelRatio: string
   onChange: (field: string, value: string) => void
 }
 
@@ -267,6 +270,8 @@ export const GroupRatioVisualEditor = memo(function GroupRatioVisualEditor({
   autoGroups,
   maxTokenAutoGroupsField,
   groupSpecialUsableGroup,
+  userModelRatio,
+  groupModelRatio,
   onChange,
 }: GroupRatioVisualEditorProps) {
   const { t } = useTranslation()
@@ -345,6 +350,13 @@ export const GroupRatioVisualEditor = memo(function GroupRatioVisualEditor({
       <GroupOverrideRules
         registry={registry}
         groupGroupRatio={groupGroupRatio}
+        onChange={onChange}
+      />
+
+      <DedicatedModelRatioEditor
+        userModelRatio={userModelRatio}
+        groupModelRatio={groupModelRatio}
+        groupOptions={registryNames}
         onChange={onChange}
       />
 

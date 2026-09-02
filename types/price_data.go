@@ -11,6 +11,10 @@ type GroupRatioInfo struct {
 	GroupRatio        float64
 	GroupSpecialRatio float64
 	HasSpecialRatio   bool
+	// DedicatedModelRatio 命中「用户/用户分组×模型」专属倍率时的生效值，未命中为 -1。
+	DedicatedModelRatio float64
+	// DedicatedModelSource 命中的专属规则来源（如 "user:42:deepseek-*"、"group:vip:glm-5.1"），未命中为空。
+	DedicatedModelSource string
 }
 
 type PriceData struct {

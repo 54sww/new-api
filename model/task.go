@@ -153,12 +153,15 @@ type TaskPluginAuthorSnapshot struct {
 // TaskBillingContext 记录任务提交时的计费参数，以便轮询阶段可以重新计算额度。
 type TaskBillingContext struct {
 	ModelPrice      float64                      `json:"model_price,omitempty"`       // 模型单价
-	GroupRatio      float64                      `json:"group_ratio,omitempty"`       // 分组倍率
-	ModelRatio      float64                      `json:"model_ratio,omitempty"`       // 模型倍率
-	OtherRatios     map[string]float64           `json:"other_ratios,omitempty"`      // 附加倍率（时长、分辨率等）
+	GroupRatio      float64                      `json:"group_ratio,omitempty"`      // 分组倍率
+	ModelRatio      float64                      `json:"model_ratio,omitempty"`      // 模型倍率
+	OtherRatios     map[string]float64           `json:"other_ratios,omitempty"`     // 附加倍率（时长、分辨率等）
 	OriginModelName string                       `json:"origin_model_name,omitempty"` // 模型名称，必须为OriginModelName
 	PerCallBilling  bool                         `json:"per_call_billing,omitempty"`  // 按次计费：跳过轮询阶段的差额结算
 	TieredSnapshot  *billingexpr.BillingSnapshot `json:"tiered_snapshot,omitempty"`
+	UserGroup            string  `json:"user_group,omitempty"`             // 提交时用户所在分组，供轮询阶段重新解析专属倍率；旧任务为空时回退任务分组
+	DedicatedModelRatio  float64 `json:"dedicated_model_ratio,omitempty"`  // 提交时命中的「用户/用户分组×模型」专属倍率（-1=未命中）
+	DedicatedModelSource string  `json:"dedicated_model_source,omitempty"` // 提交时命中的专属规则来源
 }
 
 // GetUpstreamTaskID 获取上游真实 task ID（用于与 provider 通信）
