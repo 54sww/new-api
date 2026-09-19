@@ -22,7 +22,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { GroupBadge } from '@/components/group-badge'
-import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
+import { StatusBadge } from '@/components/status-badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   Popover,
@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/tooltip'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
-import { formatLogQuota, formatTimestampToDate } from '@/lib/format'
+import { formatLogQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import { LOG_TYPE_ALL_VALUE } from '../../constants'
@@ -53,10 +53,10 @@ import {
 import {
   isDisplayableLogType,
   isTimingLogType,
-  getLogTypeConfig,
   isPerCallBilling,
 } from '../../lib/utils'
 import type { LogOtherData } from '../../types'
+import { CommonLogTimeCell } from '../common-log-row-expand'
 import { DetailsDialog } from '../dialogs/details-dialog'
 import { LogCostDisplay } from '../log-cost-display'
 import { ModelBadge } from '../model-badge'
@@ -300,26 +300,7 @@ export function useCommonLogsColumns(
     {
       accessorKey: 'created_at',
       header: t('Time'),
-      cell: ({ row }) => {
-        const log = row.original
-        const timestamp = row.getValue('created_at') as number
-        const config = getLogTypeConfig(log.type)
-
-        return (
-          <div className='flex min-w-0 flex-col gap-0.5'>
-            <span className='truncate font-mono text-xs tabular-nums'>
-              {formatTimestampToDate(timestamp)}
-            </span>
-            <StatusBadge
-              label={t(config.label)}
-              variant={config.color as StatusBadgeProps['variant']}
-              size='sm'
-              copyable={false}
-              className='-ml-1.5 !text-xs [&_span]:!text-xs'
-            />
-          </div>
-        )
-      },
+      cell: ({ row }) => <CommonLogTimeCell row={row} />,
       filterFn: (row, _id, value) => {
         if (!Array.isArray(value) || value.length === 0) return true
         if (value.includes(LOG_TYPE_ALL_VALUE)) return true

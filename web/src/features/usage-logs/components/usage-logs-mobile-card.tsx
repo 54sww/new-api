@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { flexRender, type Cell, type Table } from '@tanstack/react-table'
-import { Database } from 'lucide-react'
+import { ChevronRight, Database } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -48,8 +48,14 @@ import {
   isTimingLogType,
 } from '../lib/utils'
 import type { LogCategory } from '../types'
+import { CommonLogInlineDetails } from './common-log-inline-details'
+import {
+  commonLogExpandKey,
+  shouldIgnoreRowToggle,
+  useCommonLogRowExpand,
+} from './common-log-row-expand'
 import { StreamTpsCell, TimingMetricsCell } from './timing-metrics-cell'
-import { useUsageLogsContext } from './usage-logs-provider'
+import { useLogsViewScope, useUsageLogsContext } from './usage-logs-provider'
 
 const logTypeRowTint: Record<number, string> = {
   [LOG_TYPE_ENUM.ERROR]:
@@ -462,6 +468,8 @@ export function UsageLogsMobileList<TData>({
   logCategory,
 }: UsageLogsMobileListProps<TData>) {
   const { t } = useTranslation()
+  const expand = useCommonLogRowExpand()
+  const { isAdminView } = useLogsViewScope()
 
   const resolvedEmptyTitle = emptyTitle ?? t('No Logs Found')
   const resolvedEmptyDescription =
@@ -502,17 +510,68 @@ export function UsageLogsMobileList<TData>({
           | undefined
         const tintClass = logType != null ? (logTypeRowTint[logType] ?? '') : ''
 
+        const log = row.original as UsageLog
+        const expandKey = commonLogExpandKey(log.id)
+        const expanded =
+          logCategory === 'common' && expand?.expandedId === expandKey
+
         return (
           <div
             key={row.id}
             className={cn(
               'border-border/40 border-b border-l-2 border-l-transparent p-3 transition-colors last:border-b-0',
-              tintClass
+              tintClass,
+              logCategory === 'common' && 'cursor-pointer'
             )}
+            title={
+              logCategory === 'common'
+                ? t('Click to expand details')
+                : undefined
+            }
+            onClick={
+              logCategory === 'common' && expand
+                ? (event) => {
+                    if (shouldIgnoreRowToggle(event.target)) return
+                    expand.toggle(expandKey)
+                  }
+                : undefined
+            }
           >
-            {logCategory === 'common' && <CommonLogsCard cells={cells} />}
-            {logCategory === 'task' && <TaskLogsCard cells={cells} />}
-            {logCategory === 'drawing' && <DrawingLogsCard cells={cells} />}
+            <div className='flex items-start gap-1'>
+              {logCategory === 'common' && expand && (
+                <button
+                  type='button'
+                  className='text-muted-foreground hover:text-foreground mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-sm'
+                  aria-expanded={expanded}
+                  aria-label={expanded ? t('Collapse') : t('Expand')}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    expand.toggle(expandKey)
+                  }}
+                >
+                  <ChevronRight
+                    className={cn(
+                      'size-3.5 transition-transform',
+                      expanded && 'rotate-90'
+                    )}
+                    aria-hidden='true'
+                  />
+                </button>
+              )}
+              <div className='min-w-0 flex-1'>
+                {logCategory === 'common' && <CommonLogsCard cells={cells} />}
+                {logCategory === 'task' && <TaskLogsCard cells={cells} />}
+                {logCategory === 'drawing' && <DrawingLogsCard cells={cells} />}
+                {expanded && (
+                  <div
+                    className='border-border/60 bg-muted/20 mt-2 rounded-md border p-3'
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <CommonLogInlineDetails log={log} isAdmin={isAdminView} />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )
       })}

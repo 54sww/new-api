@@ -1,3 +1,6 @@
+import { useQuery } from '@tanstack/react-query'
+import { getRouteApi } from '@tanstack/react-router'
+import type { ColumnDef } from '@tanstack/react-table'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -16,9 +19,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
-import type { ColumnDef } from '@tanstack/react-table'
+import { Fragment, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -27,6 +28,7 @@ import {
   DataTableRow,
   useDataTable,
 } from '@/components/data-table'
+import { TableCell, TableRow } from '@/components/ui/table'
 import { useMediaQuery } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { cn } from '@/lib/utils'
@@ -36,10 +38,17 @@ import {
   LOG_TYPE_ALL_VALUE,
   LOG_TYPE_ENUM,
 } from '../constants'
+import type { UsageLog } from '../data/schema'
 import { useColumnsByCategory } from '../lib/columns'
 import { parseLogOther } from '../lib/format'
 import { fetchLogsByCategory } from '../lib/utils'
 import type { LogCategory } from '../types'
+import { CommonLogInlineDetails } from './common-log-inline-details'
+import {
+  commonLogExpandKey,
+  CommonLogRowExpandProvider,
+  shouldIgnoreRowToggle,
+} from './common-log-row-expand'
 import { CommonLogsFilterBar } from './common-logs-filter-bar'
 import { TaskLogsFilterBar } from './task-logs-filter-bar'
 import { UsageLogsMobileList } from './usage-logs-mobile-card'
@@ -167,6 +176,14 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   const logs = data?.items || []
   const columns = useColumnsByCategory(logCategory, isAdmin, isRoot)
   const isLoadingData = isLoading || (isFetching && !data)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const toggleExpanded = useCallback((id: string) => {
+    setExpandedId((current) => (current === id ? null : id))
+  }, [])
+  const expandValue = useMemo(
+    () => ({ expandedId, toggle: toggleExpanded }),
+    [expandedId, toggleExpanded]
+  )
 
   const { table } = useDataTable({
     data: logs as Record<string, unknown>[],
@@ -189,58 +206,85 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   const isCommon = logCategory === 'common'
 
   return (
-    <DataTablePage
-      table={table}
-      columns={columns as ColumnDef<Record<string, unknown>>[]}
-      isLoading={isLoadingData}
-      isFetching={isFetching}
-      emptyTitle={t('No Logs Found')}
-      emptyDescription={t(
-        'No usage logs available. Logs will appear here once API calls are made.'
-      )}
-      skeletonKeyPrefix='usage-log-skeleton'
-      applyHeaderSize
-      tableClassName={cn(
-        '[&_[data-slot=table]]:text-[13px] [&_[data-slot=table]_td]:text-[13px] [&_[data-slot=table]_td_*]:text-[13px] [&_[data-slot=table]_th]:text-[13px] [&_[data-slot=table]_th_*]:text-[13px]'
-      )}
-      mobile={
-        <UsageLogsMobileList
-          table={table}
-          isLoading={isLoadingData}
-          logCategory={logCategory}
-        />
-      }
-      toolbar={
-        isCommon ? (
-          <CommonLogsFilterBar table={table} />
-        ) : (
-          <TaskLogsFilterBar table={table} logCategory={logCategory} />
-        )
-      }
-      renderRow={(row) => {
-        const logType = (row.original as Record<string, unknown>).type as
-          | number
-          | undefined
-        let tintClass =
-          isCommon && logType != null ? (logTypeRowTint[logType] ?? '') : ''
-        if (isCommon && isAdmin) {
-          const other = parseLogOther(
-            ((row.original as Record<string, unknown>).other as string) ?? ''
-          )
-          if (other?.admin_info?.quota_saturation) {
-            tintClass = quotaSaturationRowTint
-          }
-        }
-
-        return (
-          <DataTableRow
-            key={row.id}
-            row={row}
-            className={cn('transition-colors', tintClass)}
-            getColumnClassName={() => (isCommon ? 'py-2' : 'py-3.5')}
+    <CommonLogRowExpandProvider value={expandValue}>
+      <DataTablePage
+        table={table}
+        columns={columns as ColumnDef<Record<string, unknown>>[]}
+        isLoading={isLoadingData}
+        isFetching={isFetching}
+        emptyTitle={t('No Logs Found')}
+        emptyDescription={t(
+          'No usage logs available. Logs will appear here once API calls are made.'
+        )}
+        skeletonKeyPrefix='usage-log-skeleton'
+        applyHeaderSize
+        tableClassName={cn(
+          '[&_[data-slot=table]]:text-[13px] [&_[data-slot=table]_td]:text-[13px] [&_[data-slot=table]_td_*]:text-[13px] [&_[data-slot=table]_th]:text-[13px] [&_[data-slot=table]_th_*]:text-[13px]'
+        )}
+        mobile={
+          <UsageLogsMobileList
+            table={table}
+            isLoading={isLoadingData}
+            logCategory={logCategory}
           />
-        )
-      }}
-    />
+        }
+        toolbar={
+          isCommon ? (
+            <CommonLogsFilterBar table={table} />
+          ) : (
+            <TaskLogsFilterBar table={table} logCategory={logCategory} />
+          )
+        }
+        renderRow={(row) => {
+          const log = row.original as UsageLog
+          const logType = log.type
+          let tintClass =
+            isCommon && logType != null ? (logTypeRowTint[logType] ?? '') : ''
+          if (isCommon && isAdmin) {
+            const other = parseLogOther(log.other ?? '')
+            if (other?.admin_info?.quota_saturation) {
+              tintClass = quotaSaturationRowTint
+            }
+          }
+          const expandKey = commonLogExpandKey(log.id)
+          const expanded = isCommon && expandedId === expandKey
+
+          return (
+            <Fragment key={row.id}>
+              <DataTableRow
+                row={row}
+                className={cn(
+                  'transition-colors',
+                  tintClass,
+                  isCommon && 'cursor-pointer',
+                  expanded && 'bg-muted/40'
+                )}
+                getColumnClassName={() => (isCommon ? 'py-2' : 'py-3.5')}
+                title={isCommon ? t('Click to expand details') : undefined}
+                aria-expanded={expanded ? true : undefined}
+                onClick={
+                  isCommon
+                    ? (event) => {
+                        if (shouldIgnoreRowToggle(event.target)) return
+                        toggleExpanded(expandKey)
+                      }
+                    : undefined
+                }
+              />
+              {expanded && (
+                <TableRow className='hover:[background-color:transparent]'>
+                  <TableCell
+                    colSpan={row.getVisibleCells().length}
+                    className='bg-muted/20 p-3 whitespace-normal'
+                  >
+                    <CommonLogInlineDetails log={log} isAdmin={isAdmin} />
+                  </TableCell>
+                </TableRow>
+              )}
+            </Fragment>
+          )
+        }}
+      />
+    </CommonLogRowExpandProvider>
   )
 }

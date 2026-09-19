@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { api, type ApiRequestConfig } from '@/lib/api'
 
+import { commonLogExportPath } from './lib/export-window'
 import { buildQueryParams } from './lib/query-params'
 import { parseTaskArtifactsResponse } from './lib/task-artifacts'
 import type {
@@ -85,6 +86,20 @@ export const getLogStats = (params: GetLogStatsParams = {}) =>
 export const getUserLogStats = (
   params: Omit<GetLogStatsParams, 'username' | 'channel'> = {}
 ) => fetchLogStats('/api/log', params, false)
+
+export function exportCommonLogs(params: GetLogsParams, isAdminView: boolean) {
+  const queryParams = buildQueryParams({
+    ...params,
+    p: undefined,
+    page_size: undefined,
+  })
+  return api.get<Blob>(`${commonLogExportPath(isAdminView)}?${queryParams}`, {
+    responseType: 'blob',
+    skipBusinessError: true,
+    skipErrorHandler: true,
+    disableDuplicate: true,
+  })
+}
 
 export async function getUserInfo(
   userId: number
