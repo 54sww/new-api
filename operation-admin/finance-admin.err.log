@@ -1,0 +1,2 @@
+2026/09/25 08:53:33 new-api consume logs: direct DB read (DSN configured)
+2026/09/25 08:53:33 finance-admin listening on :3100 (new-api=http://127.0.0.1:3000)

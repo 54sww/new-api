@@ -1,0 +1,38 @@
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /api/health               --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).Health-fm (4 handlers)
+[GIN-debug] POST   /api/auth/login           --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).Login-fm (4 handlers)
+[GIN-debug] POST   /api/auth/login/2fa       --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).Login2FA-fm (4 handlers)
+[GIN-debug] GET    /api/me                   --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).Me-fm (5 handlers)
+[GIN-debug] GET    /api/channels             --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).ListChannels-fm (5 handlers)
+[GIN-debug] PUT    /api/channels/:id/opening-balance --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).SetOpeningBalance-fm (5 handlers)
+[GIN-debug] GET    /api/channels/:id/balance-query --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).GetBalanceQuery-fm (5 handlers)
+[GIN-debug] PUT    /api/channels/:id/balance-query --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).PutBalanceQuery-fm (5 handlers)
+[GIN-debug] POST   /api/channels/:id/balance-query/test --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).TestBalanceQuery-fm (5 handlers)
+[GIN-debug] POST   /api/channels/:id/balance-refresh --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).RefreshChannelBalance-fm (5 handlers)
+[GIN-debug] GET    /api/balance-query/presets --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).BalanceQueryPresets-fm (5 handlers)
+[GIN-debug] GET    /api/recharges            --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).ListRecharges-fm (5 handlers)
+[GIN-debug] POST   /api/recharges            --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).CreateRecharge-fm (5 handlers)
+[GIN-debug] DELETE /api/recharges/:id        --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).DeleteRecharge-fm (5 handlers)
+[GIN-debug] GET    /api/reconcile/live       --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).LiveReconcile-fm (5 handlers)
+[GIN-debug] GET    /api/sync/status          --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).SyncStatus-fm (5 handlers)
+[GIN-debug] POST   /api/sync/:kind           --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).TriggerSync-fm (5 handlers)
+[GIN-debug] GET    /api/logs                 --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).ListConsumeLogs-fm (5 handlers)
+[GIN-debug] GET    /api/external-logs        --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).ListExternalLogs-fm (5 handlers)
+[GIN-debug] POST   /api/external-logs        --> github.com/QuantumNous/new-api/finance-admin/internal/handler.(*API).UpsertExternalLogs-fm (5 handlers)
+[GIN-debug] GET    /assets/*filepath         --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (4 handlers)
+[GIN-debug] HEAD   /assets/*filepath         --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (4 handlers)
+[GIN-debug] GET    /                         --> main.main.func1 (4 handlers)
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on :3100
+[GIN] 2026/09/25 - 08:53:39 | 200 |      3.6239ms |      10.10.1.19 | GET      "/api/reconcile/live"
+[GIN] 2026/09/25 - 08:53:39 | 200 |      1.4423ms |      10.10.1.19 | GET      "/api/recharges"
+[GIN] 2026/09/25 - 08:53:39 | 200 |     41.6471ms |      10.10.1.19 | GET      "/api/sync/status"
+
+2026/09/25 08:53:46 [32mC:/vueproject/new-api-cdn/finance-admin/internal/sync/sync.go:146 [33mSLOW SQL >= 200ms
+[0m[31;1m[10670.485ms] [33m[rows:1][35m UPDATE `channels` SET `balance`=0,`balance_currency`='USD',`balance_raw`=0,`balance_updated_time`=1790297615,`synced_at`=1790297615 WHERE id = 1[0m

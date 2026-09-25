@@ -1,0 +1,51 @@
+# Independent operation-admin stack — does NOT share new-api database or process.
+version: "3.4"
+
+services:
+  operation-admin:
+    build: .
+    container_name: operation-admin
+    restart: always
+    ports:
+      - "3100:3100"
+    environment:
+      - PORT=3100
+      - TZ=Asia/Shanghai
+      - SQL_DSN=postgresql://finance:finance_change_me@finance-postgres:5432/finance
+      - JWT_SECRET=ops-jwt-change-me
+      - NEW_API_BASE_URL=http://new-api:3000
+      - NEW_API_ACCESS_TOKEN=${NEW_API_ACCESS_TOKEN}
+      - NEW_API_SQL_DSN=${NEW_API_SQL_DSN}
+      - NEW_API_LOG_SQL_DSN=${NEW_API_LOG_SQL_DSN:-}
+      - QUOTA_PER_UNIT=500000
+      - CHANNEL_SYNC_EVERY=60s
+      - BALANCE_REFRESH_EVERY=5m
+    depends_on:
+      - finance-postgres
+    networks:
+      - ops-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3100/api/health | grep -q success || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  finance-postgres:
+    image: postgres:15
+    container_name: finance-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=finance
+      - POSTGRES_PASSWORD=finance_change_me
+      - POSTGRES_DB=finance
+    volumes:
+      - finance_pg_data:/var/lib/postgresql/data
+    networks:
+      - ops-net
+
+volumes:
+  finance_pg_data:
+
+networks:
+  ops-net:
+    driver: bridge
